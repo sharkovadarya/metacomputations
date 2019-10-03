@@ -7,14 +7,18 @@
     foldr (lambda (i d) (dict-set d (car i) (cdr i))) #hash() program))
 
 (define state-set
-  (lambda (x e state)
+  (lambda (state x e)
       (dict-set state x (cons 'quote (list e)))))
 
-(define empty-state #hash())
+(define empty-state  #hash())
 
-(define init-state
-  (lambda (program data)
-    (foldr state-set empty-state program data)))
+(define (init-state vars d)
+  (if (equal? (length vars) (length d))
+      (for/fold ([st empty-state])
+                ([i vars]
+                 [j d])
+        (state-set st i j))
+      (error "cannot initialize state")))
 
 (define substitute-in-expression
   (lambda (st e)
@@ -33,3 +37,23 @@
 (define newtail 
   (lambda (Q label) 
     (member label Q (lambda (s t) (equal? s (car t))))))
+
+
+(define safe-car
+  (lambda (p)
+    (if (eq? p '()) '_ (car p))))
+(define safe-cdr
+  (lambda (p)
+    (if (eq? p '()) '() (cdr p))))
+
+(define static-by-division?
+  (lambda (division e)
+    (match e
+    [(cons x y) (and (static-by-division? division x) (static-by-division? division y))]
+    [x (not (set-member? division x))])))
+
+(define new-label
+  (lambda (p)
+    p))
+
+
