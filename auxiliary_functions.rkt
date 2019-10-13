@@ -52,8 +52,7 @@
     [(cons x y) (and (static-by-division? division x) (static-by-division? division y))]
     [x (not (set-member? division x))])))
 
-(define new-label
-  (lambda (p)
-    p))
-
-
+(define get-labels
+  (lambda (program)
+    (for/list ([bb (cdr program)])
+      (car bb))))

@@ -7,7 +7,7 @@
   `((read program division vs0)
     (init (:= pp0 (caadr program))
           (:= pending `((,pp0 ,(init-state (car vs0) (cadr vs0)))))
-          (:= marked '())          
+          (:= marked '())
           (:= residual-code `(,(cons 'read (set-subtract (cdar program) (car vs0)))))
           (goto pending-loop))
     
@@ -15,12 +15,26 @@
     
     (pending-loop-continue (:= current (car pending))                           
                            (:= pending (cdr pending))
+                           (:= pp (car current))
                            (:= vs (cadr current))
-                           (:= bb (dict-ref program (car current)))
-                           (:= code (cons current '()))
-                           (goto block-loop))
+                           (:= code (cons current '()))                           
+                           (:= labels (get-labels program))
+                           (goto label-loop))
 
-    (block-loop (if (equal? bb '()) block-loop-stop block-loop-cont))
+    
+    (label-loop (if (eq? labels '()) label-not-found label-loop-cont))
+    
+    (label-not-found (return `(label_not_found)))
+    
+    (label-loop-cont (:= pp1 (car labels))
+                     (:= labels (cdr labels))
+                     (if (equal? pp1 pp) get-bb label-loop))
+    
+    (get-bb (:= bb (dict-ref program pp1))
+            (goto block-loop))
+    
+
+    (block-loop (if (empty? bb) block-loop-stop block-loop-cont))
     
     (block-loop-cont (:= command (car bb))
                      (:= bb (cdr bb))
@@ -29,8 +43,8 @@
     (cont1 (if (equal? (car command) 'if) do-if cont2))
     (cont2 (if (equal? (car command) 'goto) do-goto cont3))
     (cont3 (if (equal? (car command) 'return) do-return (error "unknown command")))
-
     
+
     (do-assignment (:= x (cadr command))
                    (:= exp (caddr command))
                    (if (static-by-division? division x) do-static-assignment do-dynamic-assignment))
@@ -41,24 +55,27 @@
     (do-dynamic-assignment (:= code (cons `(:= ,x ,(substitute-in-expression vs exp)) code))
                            (goto block-loop))
 
-    
+          
     (do-if (:= exp (cadr command))
            (:= then-label (caddr command))
            (:= else-label (cadddr command))
            (if (static-by-division? division exp) do-static-if do-dynamic-if))
     
-    (do-static-if (:= bb (dict-ref program (if (eval-exp vs exp) then-label else-label)))
-                  (goto block-loop))
+    (do-static-if (if (eval-exp vs exp) static-if-then static-if-false))
     
-    (do-dynamic-if (:= then-label (new-label `(,then-label ,vs)))
-                   (:= else-label (new-label `(,else-label ,vs)))
-                   (:= pending (if (set-member? marked then-label) pending (cons then-label pending)))                   
-                   (:= pending (if (set-member? marked else-label) pending (cons else-label pending)))
-                   (:= marked (cons else-label (cons then-label marked)))
-                   (:= code (cons `(if ,(substitute-in-expression vs exp) ,then-label ,else-label) code))
+    (static-if-then (:= bb (dict-ref program then-label))
+                    (goto block-loop))
+    
+    (static-if-false (:= bb (dict-ref program else-label))
+                     (goto block-loop))
+    
+    (do-dynamic-if (:= pending (if (set-member? marked `(,then-label ,vs)) pending (cons `(,then-label ,vs) pending)))                   
+                   (:= pending (if (set-member? marked `(,else-label ,vs)) pending (cons `(,else-label ,vs) pending)))
+                   (:= marked (cons `(,else-label ,vs) (cons `(,then-label ,vs) marked)))
+                   (:= code (cons `(if ,(substitute-in-expression vs exp) (,then-label ,vs) (,else-label ,vs)) code))
                    (goto block-loop))
-
     
+        
     (do-goto (:= bb (dict-ref program (cadr command)))
              (goto block-loop))
 
