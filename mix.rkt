@@ -18,7 +18,7 @@
                            (:= pp (car current))
                            (:= vs (cadr current))
                            (:= code (cons current '()))                           
-                           (:= labels (get-labels program))
+                           (:= labels (get-labels program division))
                            (goto label-loop))
 
     

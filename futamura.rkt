@@ -22,3 +22,28 @@
 ;compare generated code
 (first-futamura-projection tm-int '((0 if 0 goto 3) (1 right) (2 goto 0) (3 write 1)))
 (second-futamura-projection tm-int '((0 if 0 goto 3) (1 right) (2 goto 0) (3 write 1)))
+
+(define find-name
+  '((read name namelist valuelist)
+   (search (if (equal? name (car namelist)) found cont))
+   (cont (:= valuelist (cdr valuelist))
+         (:= namelist (cdr namelist))
+         (goto search))
+   (found (return (car valuelist)))))
+
+(define first-futamura-projection-fc
+  (lambda (interpreter program)
+    (int mix `(,interpreter (data state) ((program) (,program))))))
+
+; test
+;(int mix `(,fc-int (data state rv) ((program) (,find-name))))
+;(int (first-futamura-projection-fc fc-int find-name) `(((k (r c k t) (0 1 2 3)))))
+
+(define second-futamura-projection-fc
+  (lambda (interpreter program)
+    (int (int mix `(,mix
+                    (vs0 pending marked residual-code current pp vs code)
+                    ((program division) (,fc-int (data state))))) `(((program) (,program))))))
+
+;test
+;(int (second-futamura-projection-fc fc-int find-name) `(((k (r c k t) (0 1 2 3)))))

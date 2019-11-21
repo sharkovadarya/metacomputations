@@ -8,7 +8,7 @@
 
 (define state-set
   (lambda (state x e)
-      (dict-set state x (cons 'quote (list e)))))
+    (dict-set state x (cons 'quote (list e)))))
 
 (define empty-state  #hash())
 
@@ -18,7 +18,10 @@
                 ([i vars]
                  [j d])
         (state-set st i j))
-      (error "cannot initialize state")))
+      (begin
+        (displayln vars)
+        (displayln d)
+        (error "cannot initialize state"))))
 
 (define substitute-in-expression
   (lambda (st e)
@@ -49,10 +52,18 @@
 (define static-by-division?
   (lambda (division e)
     (match e
-    [(cons x y) (and (static-by-division? division x) (static-by-division? division y))]
-    [x (not (set-member? division x))])))
+      [(cons x y) (and (static-by-division? division x) (static-by-division? division y))]
+      [x (not (set-member? division x))])))
 
 (define get-labels
-  (lambda (program)
-    (for/list ([bb (cdr program)])
-      (car bb))))
+  (lambda (program division)
+    (cons (caadr program) (find-blocks-in-pending program division))))
+
+;PEaAPG 4.8.4: blocks-in-pending are those that were added in the dynamic if branch
+(define find-blocks-in-pending
+  (lambda (program division)
+    (for*/list ([bb (cdr program)]
+                [command (cdr bb)]
+                #:when (and (equal? (car command) 'if) (not (static-by-division? division (cadr command))))
+                [label (cddr command)])
+      label)))

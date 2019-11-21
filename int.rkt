@@ -1,7 +1,7 @@
 #lang racket
 
 (require "auxiliary_functions.rkt")
-(provide int tm-int)
+(provide int tm-int fc-int)
 
 (define int
   (lambda (program data)
@@ -64,3 +64,36 @@
           (goto loop))
     (error  (return `(unknown instruction ,Instruction)))
     (stop (return Right))))
+
+(define fc-int
+  `((read program data)
+    (init (:= state (init-state (cdar program) data))
+          (:= prog (init-prog (cdr program)))
+          (:= label (caadr program))
+          (goto loop))
+
+    (loop (:= commands (dict-ref prog label))
+          (goto cont))
+    
+    (cont (:= command (car commands))
+          (:= commands (cdr commands))
+          (if (equal? (car command) ':=) do-assign cont1))
+
+    (cont1 (if (equal? (car command) 'if) do-if cont2))
+    (cont2 (if (equal? (car command) 'goto) do-jump cont3))
+    (cont3 (if (equal? (car command) 'return) do-return error))
+    (error (return 'undefined_command))
+
+    (do-assign (:= rv (state-set state (cadr command) (caddr command)))
+               (goto cont))
+
+    (do-if (if (eval-exp state (cadr command)) do-then do-else))
+    (do-then (:= label (cadddr command))
+             (goto loop))
+    (do-else (:= label (last command))
+             (goto loop))
+
+    (do-jump (:= label (cadr command))
+             (goto loop))
+
+    (do-return (return (eval-exp state (cadr command))))))
