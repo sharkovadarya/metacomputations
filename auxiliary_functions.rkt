@@ -8,20 +8,23 @@
 
 (define state-set
   (lambda (state x e)
+    (dict-set! state x (cons 'quote (list e)))))
+
+(define state-set-immutable
+  (lambda (state x e)
     (dict-set state x (cons 'quote (list e)))))
 
-(define empty-state  #hash())
+(define empty-state (make-hash))
 
 (define (init-state vars d)
   (if (equal? (length vars) (length d))
-      (for/fold ([st empty-state])
-                ([i vars]
-                 [j d])
-        (state-set st i j))
-      (begin
-        (displayln vars)
-        (displayln d)
-        (error "cannot initialize state"))))
+      (let()
+        (define st (make-hash))
+        (for ([i vars]
+              [j d])
+          (state-set st i j))
+        st)
+      (error "cannot initialize state")))
 
 (define substitute-in-expression
   (lambda (st e)
@@ -36,6 +39,16 @@
 (define eval-exp
   (lambda (st e)
     (eval (substitute-in-expression st e) ns)))
+
+(define (init-state-immutable vars d)
+  (if (equal? (length vars) (length d))
+      (let()
+        (define st #hash())
+        (for ([i vars]
+              [j d])
+          (set! st (state-set-immutable st i j)))
+        st)
+      (error "cannot initialize state")))
 
 (define newtail 
   (lambda (Q label) 

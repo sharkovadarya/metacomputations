@@ -7,38 +7,38 @@
   (lambda (program data)
     (let ([prog (init-prog (cdr program))]
           [state (init-state (cdar program) data)])
-      (int-basic-block prog state (cdadr program)))))
+      (int-basic-block prog state (caadr program)))))
 
-(define int-basic-block
-  (lambda (program state basic-block)
-    (match basic-block
-      ['() (error "no basic block found")]
-      [`(,head)
-       (int-jump program state head)]
-      [`(,head . ,tail)
-       (int-basic-block program (int-assignment state head) tail)])))
+(define (int-basic-block program state label)
+  (let ([statements (dict-ref program label)])
+    (match statements
+      [(list assignments ... jump)
+       (let()
+         (for ([assignment assignments])
+           (int-assignment state assignment))
+         (int-jump program state jump))]
+      [_ (error "no basic block found")])))
 
-(define int-jump
-  (lambda (program state instruction)
-    (match instruction
-      [`(goto, label) (int-basic-block program state (dict-ref program label))]
-      [`(if ,expression ,label1 ,label2)
-       (if (eval-exp state expression)
-           (int-basic-block program state (dict-ref program label1))
-           (int-basic-block program state (dict-ref program label2)))]
-      [`(return ,expression) (eval-exp state expression)])))
+(define (int-assignment state assignment)
+  (match assignment
+    [`(:= ,variable ,expressioni) (let () (state-set state variable (eval-exp state expressioni)))]
+    [_ (error "no assignment found")]))
 
-(define int-assignment
-  (lambda (state assignment)
-    (match assignment
-      [`(:= ,variable ,expression) (let ([new-value (eval-exp state expression)]) (state-set state variable new-value))]
-      [_ (error "no assignment found")])))
+
+(define (int-jump program state jump)
+  (match jump
+    [`(goto ,label) (int-basic-block program state label)]
+    [`(if ,expression ,label1 ,label2)
+     (if (eval-exp state expression)
+         (int-basic-block program state label1)
+         (int-basic-block program state label2))]
+    [`(return ,expression) (eval-exp state expression)]))
 
 (define tm-int
   `((read Q Right)
     (init (:= Qtail Q) (:= Left '()) (goto loop))
     (loop (if (eq? Qtail '()) stop cont))
-    (cont  (:= Instruction (cdar Qtail))           
+    (cont  (:= Instruction (cdar Qtail))
            (:= Qtail (cdr Qtail))
            (:= operator (car Instruction))
            (if (equal? operator 'right) do-right cont1))
@@ -60,10 +60,10 @@
     (do-if    (:= Symbol (cadr Instruction))
               (:= Nextlabel (cadddr Instruction))
               (if (equal? Symbol (safe-car Right)) jump loop))
-    (jump (:= Qtail (newtail Q Nextlabel))
-          (goto loop))
-    (error  (return `(unknown instruction ,Instruction)))
-    (stop (return Right))))
+    (jump  (:= Qtail (newtail Q Nextlabel))
+           (goto cont))
+    (error (return `(unknown instruction ,Instruction)))
+    (stop   (return Right))))
 
 (define fc-int
   `((read program data)
@@ -74,23 +74,22 @@
 
     (loop (:= commands (dict-ref prog label))
           (goto cont))
-    
+
     (cont (:= command (car commands))
           (:= commands (cdr commands))
-          (if (equal? (car command) ':=) do-assign cont1))
-
+          (if (equal? (car command) `:=)  do-assignment  cont1))
     (cont1 (if (equal? (car command) 'if) do-if cont2))
     (cont2 (if (equal? (car command) 'goto) do-jump cont3))
     (cont3 (if (equal? (car command) 'return) do-return error))
     (error (return 'undefined_command))
 
-    (do-assign (:= rv (state-set state (cadr command) (caddr command)))
-               (goto cont))
+    (do-assignment (:= rv (state-set state (cadr command) (eval-exp state (caddr command))))
+                   (goto cont))
 
-    (do-if (if (eval-exp state (cadr command)) do-then do-else))
-    (do-then (:= label (cadddr command))
+    (do-if (if (eval-exp state (cadr command))  do-then  do-else))
+    (do-then (:= label (caddr command))
              (goto loop))
-    (do-else (:= label (last command))
+    (do-else (:= label (cadddr command))
              (goto loop))
 
     (do-jump (:= label (cadr command))
