@@ -25,11 +25,11 @@
 
 (define find-name
   '((read name namelist valuelist)
-   (search (if (equal? name (car namelist)) found cont))
-   (cont (:= valuelist (cdr valuelist))
-         (:= namelist (cdr namelist))
-         (goto search))
-   (found (return (car valuelist)))))
+    (search (if (equal? name (car namelist)) found cont))
+    (cont (:= valuelist (cdr valuelist))
+          (:= namelist (cdr namelist))
+          (goto search))
+    (found (return (car valuelist)))))
 
 (define first-futamura-projection-fc
   (lambda (interpreter program)
@@ -49,3 +49,22 @@
 ;compare generated code
 (first-futamura-projection-fc fc-int find-name)
 (second-futamura-projection-fc fc-int find-name)
+
+(define futamura3 (int mix `(,mix
+                             (vs0 pending marked residual-code current pp vs code)
+                             ((program division) (,mix (vs0 pending marked residual-code current pp vs code))))))
+
+(define third-futamura-projection-tm
+  (lambda (interpreter program)
+    (int (int mix `(,mix
+                    (vs0 pending marked residual-code current pp vs code)
+                    ((program division) (,mix (vs0 pending marked residual-code current pp vs code))))) `(((program division) (,interpreter (Right Left)))))))
+(int (third-futamura-projection-tm tm-int '((0 if 0 goto 3) (1 right) (2 goto 0) (3 write 1))) `((1 1 0 1 1 0 1)))
+
+(define third-futamura-projection-fc
+  (lambda (interpreter program)
+    (int (int mix `(,mix
+                    (vs0 pending marked residual-code current pp vs code)
+                    ((program division) (,mix (vs0 pending marked residual-code current pp vs code))))) `(((program division) (,interpreter (data state rv)))))))
+
+(int (third-futamura-projection-fc fc-int find-name) `((1 1 0 1 1 0 1)))
